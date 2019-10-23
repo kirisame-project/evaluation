@@ -2,8 +2,9 @@ import React, { useRef, useEffect, useState } from 'react'
 
 import AppConfiguration from './config'
 import { CaptureService } from './utils/capture'
+import { CropService } from './utils/crop'
 import { UserMediaOptions } from './utils/device'
-import { DirectService } from './utils/direct'
+import { DirectService, DetectionResult } from './utils/direct'
 import { PlaybackController } from './utils/playback'
 
 import './app.css'
@@ -40,6 +41,7 @@ export function AppMain(props: {
     const [stream, setStream] = useState<MediaStream>(undefined)
 
     const canvas = useRef<HTMLCanvasElement>()
+    const cropService = useRef<CropService>(new CropService())
     const videoElement = useRef<HTMLVideoElement>(
         createVideoElement(cameraConfig.height, cameraConfig.width),
     )
@@ -72,27 +74,57 @@ export function AppMain(props: {
     }
 
     useEffect(() => {
-        const currentCanvas = canvas.current
-
         const capture = new CaptureService(videoElement.current)
         const direct = new DirectService(directConfig)
         const playback = new PlaybackController(canvas.current, videoElement.current)
 
-        const requestTimer = setInterval(async () => {
-            const blob = await capture.getBlob()
-            const result = await direct.requestDetection(blob)
-            playback.setDetectionBox(result)
-        }, 500)
+        let shutdown = false
+        let hasActiveRecognition = false
 
-        const drawTimer = setInterval(() => playback.drawVideo(), 50)
+        function framer() {
+            if (shutdown) return
+            playback.drawVideo()
+            setTimeout(() => framer(), 25)
+        }
 
-        const draw = () => playback.drawVideo()
-        currentCanvas.addEventListener('resize', draw)
+        async function recognize(blob: Blob, box: DetectionResult) {
+            hasActiveRecognition = true
+            try {
+                const {
+                    x1, x2, y1, y2,
+                } = box
+                const h = y2 - y1
+                const w = x2 - x1
+
+                const crop = await cropService.current.crop(blob, x1, y1, h, w)
+                if (crop === null) return
+
+                const recognition = await direct.requestRecognition(crop)
+                playback.setRecognitionResult(recognition)
+            } finally {
+                hasActiveRecognition = false
+            }
+        }
+
+        async function requester() {
+            if (shutdown) return
+
+            try {
+                const blob = await capture.getBlob()
+                const result = await direct.requestDetection(blob)
+                playback.setDetectionBox(result)
+
+                if (!hasActiveRecognition) recognize(blob, result)
+            } finally {
+                setTimeout(() => requester(), 25)
+            }
+        }
+
+        setImmediate(() => framer())
+        setImmediate(() => requester())
 
         return () => {
-            clearInterval(requestTimer)
-            clearInterval(drawTimer)
-            currentCanvas.removeEventListener('resize', draw)
+            shutdown = true
         }
     }, [config, directConfig, videoElement])
 

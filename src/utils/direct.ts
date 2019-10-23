@@ -1,7 +1,7 @@
 export interface DirectServiceConfiguration {
     endpoints: {
         detection: string
-        recoginition: string
+        recognition: string
     }
 }
 
@@ -13,6 +13,8 @@ export interface DetectionResult {
 }
 
 type DetectionResponse = number[]
+
+export type RecognitionResult = number[]
 
 export class DirectService {
     private readonly config: DirectServiceConfiguration
@@ -41,8 +43,28 @@ export class DirectService {
         } catch (e) {
             console.error('Detection service failed: ', e)
             return {
-                x1: 114, x2: 514, y1: 114, y2: 514,
+                x1: 0, x2: 0, y1: 0, y2: 0,
             }
+        }
+    }
+
+    public async requestRecognition(image: Blob): Promise<RecognitionResult> {
+        try {
+            const request = await fetch(this.config.endpoints.recognition, {
+                body: image,
+                headers: {
+                    'Content-Type': 'image/jpeg',
+                },
+                method: 'POST',
+            })
+
+            const response = await request.json()
+            if (!(response instanceof Array)) throw new Error('non-array result')
+
+            return response[0]
+        } catch (e) {
+            console.error('Recognition service failed: ', e)
+            return [0]
         }
     }
 }
