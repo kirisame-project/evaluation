@@ -2,6 +2,7 @@ export interface DirectServiceConfiguration {
     endpoints: {
         detection: string
         recognition: string
+        search: string
     }
 }
 
@@ -65,6 +66,31 @@ export class DirectService {
         } catch (e) {
             console.error('Recognition service failed: ', e)
             return [0]
+        }
+    }
+
+    public async requestSearch(vector: number[]) {
+        const body = {
+            count: 1,
+            topk: 3,
+            vectors: { "nekomimi": vector },
+        }
+
+        try {
+            const request = await fetch(this.config.endpoints.search, {
+                body: JSON.stringify(body),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                method: 'POST',
+            })
+
+            const response = await request.json()
+            if (response.code !== 200) throw new Error('code != 200')
+
+            return response.result['nekomimi']
+        } catch (e) {
+            console.error('Search service failed: ', e)
         }
     }
 }

@@ -87,7 +87,7 @@ export function AppMain(props: {
             setTimeout(() => framer(), 25)
         }
 
-        async function recognize(blob: Blob, box: DetectionResult) {
+        async function advanced(blob: Blob, box: DetectionResult) {
             hasActiveRecognition = true
             try {
                 const {
@@ -101,6 +101,9 @@ export function AppMain(props: {
 
                 const recognition = await direct.requestRecognition(crop)
                 playback.setRecognitionResult(recognition)
+
+                const search = await direct.requestSearch(recognition)
+                playback.setSearchResult(search)
             } finally {
                 hasActiveRecognition = false
             }
@@ -114,7 +117,7 @@ export function AppMain(props: {
                 const result = await direct.requestDetection(blob)
                 playback.setDetectionBox(result)
 
-                if (!hasActiveRecognition) recognize(blob, result)
+                if (!hasActiveRecognition) advanced(blob, result)
             } finally {
                 setTimeout(() => requester(), 25)
             }

@@ -9,6 +9,8 @@ export class PlaybackController {
 
     private qr: HTMLImageElement
 
+    private searchResult: any
+
     private readonly video: HTMLVideoElement
 
     public constructor(canvas: HTMLCanvasElement, video: HTMLVideoElement) {
@@ -37,6 +39,10 @@ export class PlaybackController {
         this.qr.src = qr.toDataURL()
     }
 
+    public setSearchResult(result: any) {
+        this.searchResult = result
+    }
+
     public drawVideo() {
         const ctx = this.canvas.getContext('2d')
 
@@ -58,6 +64,12 @@ export class PlaybackController {
         ctx.strokeText(posText, x1, y2 + 16)
         ctx.fillStyle = 'green'
         ctx.fillText(posText, x1, y2 + 16)
+
+        if (this.searchResult) {
+            const searchText = JSON.stringify(this.searchResult)
+            ctx.strokeText(searchText, x1, y2 + 48)
+            ctx.fillText(searchText, x1, y2 + 48)
+        }
 
         ctx.drawImage(this.qr, x2, y1, 128, 128)
 
