@@ -36,7 +36,7 @@ export function AppMain(props: {
     config: AppConfiguration
 }) {
     const { config } = props
-    const { camera: cameraConfig, direct: directConfig } = config
+    const { camera: cameraConfig, direct: directConfig, render: renderConfig } = config
 
     const [stream, setStream] = useState<MediaStream>(undefined)
 
@@ -76,10 +76,12 @@ export function AppMain(props: {
     useEffect(() => {
         const capture = new CaptureService(videoElement.current)
         const direct = new DirectService(directConfig)
-        const playback = new PlaybackController(canvas.current, videoElement.current)
+        const playback = new PlaybackController(canvas.current, videoElement.current, renderConfig)
 
         let shutdown = false
         let hasActiveRecognition = false
+
+        let resultClearTimer: number
 
         function framer() {
             if (shutdown) return
@@ -104,6 +106,12 @@ export function AppMain(props: {
 
                 const search = await direct.requestSearch(recognition)
                 playback.setSearchResult(search)
+
+                if (resultClearTimer) clearTimeout(resultClearTimer)
+                resultClearTimer = setTimeout(() => {
+                    playback.setRecognitionResult(undefined)
+                    playback.setSearchResult(undefined)
+                })
             } finally {
                 hasActiveRecognition = false
             }
@@ -129,7 +137,7 @@ export function AppMain(props: {
         return () => {
             shutdown = true
         }
-    }, [config, directConfig, videoElement])
+    }, [config, directConfig, renderConfig, videoElement])
 
     return (
         <div className="app-main">

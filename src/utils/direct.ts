@@ -15,6 +15,11 @@ export interface DetectionResult {
 
 type DetectionResponse = number[]
 
+export interface SearchResult {
+    distance: number[]
+    ids: number[]
+}
+
 export type RecognitionResult = number[]
 
 export class DirectService {
@@ -69,7 +74,7 @@ export class DirectService {
         }
     }
 
-    public async requestSearch(vector: number[]) {
+    public async requestSearch(vector: number[]): Promise<SearchResult> {
         const body = {
             count: 1,
             topk: 3,
