@@ -2,10 +2,9 @@ import React, { useRef, useEffect, useState } from 'react'
 
 import AppConfiguration from './config'
 import { CaptureService } from './utils/capture'
-import { CropService } from './utils/crop'
 import { UserMediaOptions } from './utils/device'
-import { DirectService, DetectionResult } from './utils/direct'
-import { PlaybackController } from './utils/playback'
+import { LambdaClient } from './utils/lambda/client'
+import { Renderer } from './utils/render'
 
 import './app.css'
 
@@ -36,12 +35,11 @@ export function AppMain(props: {
     config: AppConfiguration
 }) {
     const { config } = props
-    const { camera: cameraConfig, direct: directConfig, render: renderConfig } = config
+    const { camera: cameraConfig, lambda: lambdaConfig, render: renderConfig } = config
 
     const [stream, setStream] = useState<MediaStream>(undefined)
 
     const canvas = useRef<HTMLCanvasElement>()
-    const cropService = useRef<CropService>(new CropService())
     const videoElement = useRef<HTMLVideoElement>(
         createVideoElement(cameraConfig.height, cameraConfig.width),
     )
@@ -74,70 +72,64 @@ export function AppMain(props: {
     }
 
     useEffect(() => {
-        const capture = new CaptureService(videoElement.current)
-        const direct = new DirectService(directConfig)
-        const playback = new PlaybackController(canvas.current, videoElement.current, renderConfig)
-
         let shutdown = false
-        let hasActiveRecognition = false
 
-        let resultClearTimer: number
+        /* configure rendering */
+
+        const video = stream ? videoElement.current : undefined
+        const renderer = new Renderer(canvas.current, video, renderConfig)
+
+        let frameRate = 0
 
         function framer() {
             if (shutdown) return
-            playback.drawVideo()
-            setTimeout(() => framer(), 25)
+            renderer.render()
+            frameRate += 1
+            setTimeout(() => framer(), 1)
         }
 
-        async function advanced(blob: Blob, box: DetectionResult) {
-            hasActiveRecognition = true
-            try {
-                const {
-                    x1, x2, y1, y2,
-                } = box
-                const h = y2 - y1
-                const w = x2 - x1
-
-                const crop = await cropService.current.crop(blob, x1, y1, h, w)
-                if (crop === null) return
-
-                const recognition = await direct.requestRecognition(crop)
-                playback.setRecognitionResult(recognition)
-
-                const search = await direct.requestSearch(recognition)
-                playback.setSearchResult(search)
-
-                if (resultClearTimer) clearTimeout(resultClearTimer)
-                resultClearTimer = setTimeout(() => {
-                    playback.setRecognitionResult(undefined)
-                    playback.setSearchResult(undefined)
-                })
-            } finally {
-                hasActiveRecognition = false
-            }
-        }
-
-        async function requester() {
+        function resetFrameRate() {
             if (shutdown) return
-
-            try {
-                const blob = await capture.getBlob()
-                const result = await direct.requestDetection(blob)
-                playback.setDetectionBox(result)
-
-                if (!hasActiveRecognition) advanced(blob, result)
-            } finally {
-                setTimeout(() => requester(), 25)
-            }
+            renderer.setFrameRate(frameRate)
+            frameRate = 0
+            setTimeout(() => resetFrameRate(), 1000)
         }
 
         setImmediate(() => framer())
-        setImmediate(() => requester())
+        setImmediate(() => resetFrameRate())
 
-        return () => {
-            shutdown = true
+        /* configure networking */
+
+        const capture = new CaptureService(videoElement.current)
+        const client = new LambdaClient(lambdaConfig)
+
+        client.onupdate = (result) => {
+            renderer.stage2 = result
+            setTimeout(() => {
+                if (renderer.stage2 === result) {
+                    renderer.stage2 = undefined
+                }
+            }, 2000)
         }
-    }, [config, directConfig, renderConfig, videoElement])
+
+        async function requester() {
+            const image = await capture.getBlob()
+            try {
+                const result = await client.commit(image)
+                renderer.setDetectionError(undefined)
+                renderer.stage1 = result
+            } catch (e) {
+                renderer.setDetectionError(e)
+            }
+            setTimeout(() => requester(), 100)
+        }
+
+        if (stream !== undefined) {
+            setImmediate(() => requester())
+        }
+
+        return () => { shutdown = true }
+    }, [lambdaConfig, renderConfig, stream, videoElement])
 
     return (
         <div className="app-main">

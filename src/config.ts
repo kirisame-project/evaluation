@@ -1,9 +1,9 @@
 import { UserMediaOptions } from './utils/device'
-import { DirectServiceConfiguration } from './utils/direct'
-import { RenderConfiguration } from './utils/playback'
+import { RenderConfiguration } from './utils/render'
+import { LambdaClientConfiguration } from './utils/lambda/client'
 
 export default interface AppConfiguration {
     camera: UserMediaOptions
-    direct: DirectServiceConfiguration
+    lambda: LambdaClientConfiguration
     render: RenderConfiguration
 }
