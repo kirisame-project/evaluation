@@ -21,12 +21,14 @@ export interface LambdaFace {
 
 export interface LambdaSubTask {
     _time: number
+    state: 'Pending' | 'Completed'
 }
 
 export interface LambdaTask {
     count: number
     faces: LambdaFace[]
     taskDetection: LambdaSubTask
+    taskSearch: LambdaSubTask
     timestamp: string
     _time: number
 }

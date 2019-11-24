@@ -17,6 +17,10 @@ export class Renderer {
 
     public stage2: LambdaTask
 
+    public serverName: string
+
+    public sessionId: string
+
     private readonly video: HTMLVideoElement
 
     public constructor(canvas: HTMLCanvasElement, video: HTMLVideoElement,
@@ -102,6 +106,8 @@ export class Renderer {
 [Stage1] ${this.stage1 ? `Count=${this.stage1.faces.length} Time=${this.stage1.taskDetection._time}` : undefined}
 [Stage2] ${this.stage2 ? this.stage2.timestamp : 'No recent response'}
 [Stage2] ${this.stage2 ? `Count=${this.stage2.faces.length} Time=${this.stage2._time}` : undefined}
+[ServerName] ${this.serverName}
+[SessionId] ${this.sessionId}
         `
         Renderer.drawText(ctx, stats, 0, 0)
     }

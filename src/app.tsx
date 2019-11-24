@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react'
 
 import AppConfiguration from './config'
+import { WebSocketClient } from './websocket/client'
 import { CaptureService } from './utils/capture'
 import { UserMediaOptions } from './utils/device'
-import { LambdaClient } from './utils/lambda/client'
 import { Renderer } from './utils/render'
 
 import './app.css'
@@ -35,7 +35,7 @@ export function AppMain(props: {
     config: AppConfiguration
 }) {
     const { config } = props
-    const { camera: cameraConfig, lambda: lambdaConfig, render: renderConfig } = config
+    const { camera: cameraConfig, websocket: wsConfig, render: renderConfig } = config
 
     const [stream, setStream] = useState<MediaStream>(undefined)
 
@@ -101,12 +101,17 @@ export function AppMain(props: {
         /* configure networking */
 
         const capture = new CaptureService(videoElement.current)
-        const client = new LambdaClient(lambdaConfig)
+        const client = new WebSocketClient(wsConfig)
 
-        client.onupdate = (result) => {
-            renderer.stage2 = result
+        client.ontaskupdate = (task) => {
+            renderer.serverName = client.serverName
+            renderer.sessionId = client.sessionId
+
+            if (task.taskSearch.state === 'Pending') renderer.stage1 = task
+            if (task.taskSearch.state === 'Completed') renderer.stage2 = task
+
             setTimeout(() => {
-                if (renderer.stage2 === result) {
+                if (renderer.stage2 === task) {
                     renderer.stage2 = undefined
                 }
             }, 2000)
@@ -114,14 +119,8 @@ export function AppMain(props: {
 
         async function requester() {
             const image = await capture.getBlob()
-            try {
-                const result = await client.commit(image)
-                renderer.setDetectionError(undefined)
-                renderer.stage1 = result
-            } catch (e) {
-                renderer.setDetectionError(e)
-            }
-            setTimeout(() => requester(), 100)
+            await client.sendImageRequest(image)
+            setTimeout(() => requester(), 500)
         }
 
         if (stream !== undefined) {
@@ -129,7 +128,7 @@ export function AppMain(props: {
         }
 
         return () => { shutdown = true }
-    }, [lambdaConfig, renderConfig, stream, videoElement])
+    }, [wsConfig, renderConfig, stream, videoElement])
 
     return (
         <div className="app-main">
