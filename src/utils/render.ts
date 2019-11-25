@@ -1,4 +1,4 @@
-import { RecognitionTask, Face } from '../websocket/task'
+import { RecognizedFace, RecognitionTask } from '../websocket/contracts'
 
 export interface RenderConfiguration {
     threshold: number
@@ -11,11 +11,9 @@ export class Renderer {
 
     private frameRate: number
 
-    public stage1: RecognitionTask
+    public detection: RecognitionTask
 
-    public stage1Error: any
-
-    public stage2: RecognitionTask
+    public search: RecognitionTask
 
     public serverName: string
 
@@ -30,15 +28,11 @@ export class Renderer {
         this.config = config
     }
 
-    public setDetectionError(e: any) {
-        this.stage1Error = e
-    }
-
     public setFrameRate(frameRate: number) {
         this.frameRate = frameRate
     }
 
-    public static drawFaceBox(ctx: CanvasRenderingContext2D, face: Face) {
+    public static drawFaceBox(ctx: CanvasRenderingContext2D, face: RecognizedFace) {
         const {
             x1, x2, y1, y2,
         } = face.position
@@ -76,15 +70,15 @@ export class Renderer {
         ctx.drawImage(this.video, 0, 0, width, height)
 
         // draw stage 1 results
-        if (this.stage1 && this.stage1.faces instanceof Array) {
-            this.stage1.faces.forEach((face) => Renderer.drawFaceBox(ctx, face))
+        if (this.detection && this.detection.faces instanceof Array) {
+            this.detection.faces.forEach((face) => Renderer.drawFaceBox(ctx, face))
         }
 
         // draw stage 2 results
-        if (this.stage2 && this.stage2.faces instanceof Array) {
+        if (this.search && this.search.faces instanceof Array) {
             ctx.strokeStyle = 'green'
-            this.stage2.faces.forEach((face) => {
-                const { label, distance } = face.searchResults[0]
+            this.search.faces.forEach((face: RecognizedFace) => {
+                const { label, distance } = face.results[0]
                 ctx.strokeStyle = distance > 0.8
                     ? 'green' : 'red'
 
@@ -102,10 +96,10 @@ export class Renderer {
         ctx.strokeStyle = 'grey'
         const stats = `
 [Renderer] frameRate=${this.frameRate}
-[Stage1] ${this.stage1 ? this.stage1.timestamp : 'No recent response'}
-[Stage1] ${this.stage1 ? `Count=${this.stage1.faces.length} Time=${this.stage1.taskDetection._time}` : undefined}
-[Stage2] ${this.stage2 ? this.stage2.timestamp : 'No recent response'}
-[Stage2] ${this.stage2 ? `Count=${this.stage2.faces.length} Time=${this.stage2._time}` : undefined}
+[Detection] ${this.detection ? this.detection.start : 'No recent response'}
+[Detection] ${this.detection ? `Count=${this.detection.faceCount} Time=${JSON.stringify(this.detection.detection.time)}` : undefined}
+[Search] ${this.search ? this.search.start : 'No recent response'}
+[Search] ${this.search ? `Count=${this.search.faceCount} Time=${this.search.time}` : undefined}
 [ServerName] ${this.serverName}
 [SessionId] ${this.sessionId}
         `

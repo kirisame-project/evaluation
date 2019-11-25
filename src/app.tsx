@@ -107,12 +107,17 @@ export function AppMain(props: {
             renderer.serverName = client.serverName
             renderer.sessionId = client.sessionId
 
-            if (task.taskSearch.state === 'Pending') renderer.stage1 = task
-            if (task.taskSearch.state === 'Completed') renderer.stage2 = task
+            if (task.detection.state === 'Succeeded') {
+                renderer.detection = task
+            }
+
+            if (task.search.state === 'Succeeded') {
+                renderer.search = task
+            }
 
             setTimeout(() => {
-                if (renderer.stage2 === task) {
-                    renderer.stage2 = undefined
+                if (renderer.search === task) {
+                    renderer.search = undefined
                 }
             }, 2000)
         }

@@ -1,5 +1,5 @@
 import * as uuid from 'uuid/v4'
-import { RecognitionTask } from './task'
+import { RecognitionTask } from './contracts'
 
 export interface WebSocketConfiguration {
     endpoint: string
