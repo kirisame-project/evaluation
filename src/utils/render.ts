@@ -1,4 +1,4 @@
-import { LambdaFace, LambdaTask } from './lambda/client'
+import { RecognitionTask, Face } from '../websocket/task'
 
 export interface RenderConfiguration {
     threshold: number
@@ -11,11 +11,11 @@ export class Renderer {
 
     private frameRate: number
 
-    public stage1: LambdaTask
+    public stage1: RecognitionTask
 
     public stage1Error: any
 
-    public stage2: LambdaTask
+    public stage2: RecognitionTask
 
     public serverName: string
 
@@ -38,7 +38,7 @@ export class Renderer {
         this.frameRate = frameRate
     }
 
-    public static drawFaceBox(ctx: CanvasRenderingContext2D, face: LambdaFace) {
+    public static drawFaceBox(ctx: CanvasRenderingContext2D, face: Face) {
         const {
             x1, x2, y1, y2,
         } = face.position
